@@ -9,21 +9,33 @@ import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:audio_session/audio_session.dart';
 import 'common.dart';
+import 'constant.dart' as Constant;
 
 class HttpService {
-  final String getURL = "http://54.162.23.86:11234/get";
-  final String postvoiceURL = "http://54.162.23.86:11234/post/vocie";
+  final String getURL = "http://${Constant.BASE_IP}:11234/get";
+  final String postvoiceURL = "http://${Constant.BASE_IP}:11234/post/vocie";
+  final String getlistURL = "http://${Constant.BASE_IP}:11234/get/voice_list";
 
   Future<String> generateVoice(String speaker, String lang, String text) async {
     var url="$postvoiceURL";
     final header = {"Content-Type": "application/json"};
     var data = {
-      "BUCKET": "waifumakerbucket",
+      "BUCKET": "waifumakerbucket1",
       "SPEAKER": speaker,
       "LANG": lang,
       "TEXT": text,
     };
     final http.Response res = await http.post(Uri.parse(postvoiceURL), body: jsonEncode(data), headers: header);
+    
+    if (res.statusCode == 200) {
+      return res.body;
+    } else {
+      throw "Unable to retrieve posts.";
+    }
+  }
+
+  Future<String> getList() async {
+    final http.Response res = await http.get(Uri.parse(getlistURL));
     
     if (res.statusCode == 200) {
       return res.body;
@@ -42,7 +54,7 @@ class VoicePage extends StatefulWidget {
 class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _textController = TextEditingController();
-  String character = "", lang="";
+
   final _player = AudioPlayer();
 
   @override
@@ -52,6 +64,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.black,
     ));
+    _textController.text = "相對論是關於時空和重力的理論，主要由愛因斯坦創立，依其研究對象的不同可分為狹義相對論和廣義相對論。";
     _init();
   }
 
@@ -69,7 +82,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
     try {
       // AAC example: https://dl.espressif.com/dl/audio/ff-16b-2c-44100hz.aac
       await _player.setAudioSource(AudioSource.uri(Uri.parse(
-          "https://waifumakerbucket.s3.amazonaws.com/Voice/%E7%AC%A6%E7%8E%84_ZH_ZH_%E7%9B%B8%E5%B0%8D%E8%AB%96%E6%98%AF%E9%97%9C%E6%96%BC%E6%99%82%E7%A9%BA%E5%92%8C%E9%87%8D%E5%8A%9B%E7%9A%84%E7%90%86%E8%AB%96%EF%BC%8C%E4%B8%BB%E8%A6%81%E7%94%B1%E6%84%9B%E5%9B%A0%E6%96%AF%E5%9D%A6%E5%89%B5%E7%AB%8B%EF%BC%8C%E4%BE%9D%E5%85%B6%E7%A0%94%E7%A9%B6%E5%B0%8D%E8%B1%A1%E7%9A%84%E4%B8%8D%E5%90%8C%E5%8F%AF%E5%88%86%E7%82%BA%E7%8B%B9%E7%BE%A9%E7%9B%B8%E5%B0%8D%E8%AB%96%E5%92%8C%E5%BB%A3%E7%BE%A9%E7%9B%B8%E5%B0%8D%E8%AB%96%E3%80%82.wav"
+          "https://waifumakerbucket1.s3.amazonaws.com/Voice/%E7%AC%A6%E7%8E%84_ZH_ZH_%E7%9B%B8%E5%B0%8D%E8%AB%96%E6%98%AF%E9%97%9C%E6%96%BC%E6%99%82%E7%A9%BA%E5%92%8C%E9%87%8D%E5%8A%9B%E7%9A%84%E7%90%86%E8%AB%96%EF%BC%8C%E4%B8%BB%E8%A6%81%E7%94%B1%E6%84%9B%E5%9B%A0%E6%96%AF%E5%9D%A6%E5%89%B5%E7%AB%8B%EF%BC%8C%E4%BE%9D%E5%85%B6%E7%A0%94%E7%A9%B6%E5%B0%8D%E8%B1%A1%E7%9A%84%E4%B8%8D%E5%90%8C%E5%8F%AF%E5%88%86%E7%82%BA%E7%8B%B9%E7%BE%A9%E7%9B%B8%E5%B0%8D%E8%AB%96%E5%92%8C%E5%BB%A3%E7%BE%A9%E7%9B%B8%E5%B0%8D%E8%AB%96%E3%80%82.wav"
       )));
     } catch (e) {
       print("Error loading audio source: $e");
@@ -106,7 +119,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
-    _textController.text = appState.voice_text;
+    appState.voice_text = _textController.text;
 
 
     return Scaffold(
@@ -141,8 +154,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
                         ),
                       ),
                       onChanged: (value) {
-                        character = value ?? "";
-                        appState.voice_character = character;
+                        appState.voice_character = value ?? "";
                       },
                     ),
                   ),
@@ -165,8 +177,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
                         ),
                       ),
                       onChanged: (value) {
-                        lang = value ?? "";
-                        appState.voice_lang = lang;
+                        appState.voice_lang = value ?? "";
                       },
                     ),
                   ),
@@ -188,8 +199,8 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
               Padding(padding: EdgeInsets.all(8)),
               ElevatedButton.icon(
                 onPressed: () async {
-                  if (character != "" && lang != "" && _textController.text != "") {
-                    final result = await HttpService().generateVoice(character, lang, _textController.text);
+                  if (appState.voice_character != "" && appState.voice_lang != "" && _textController.text != "") {
+                    final result = await HttpService().generateVoice(appState.voice_character, appState.voice_lang, _textController.text);
                     await _player.setAudioSource(
                       AudioSource.uri(
                         Uri.parse(result)
@@ -245,11 +256,11 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
   }
 
   Future<List<String>> getData(filter) async {
-    final _loadedData = await rootBundle.loadString('zh-cn_and_zh-tw.txt');
+    final _loadedData = await HttpService().getList();
     
     return [
-      for (String char in _loadedData.split('\n'))
-        char.trim().split(' ')[1]
+      for (String char in jsonDecode(_loadedData))
+        char
     ];
   }
 

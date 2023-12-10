@@ -10,11 +10,12 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'main.dart';
+import 'constant.dart' as Constant;
 
 class HttpService {
-  final String getURL = "http://54.162.23.86:11234/get";
-  final String tokenURL = "http://54.162.23.86:11234/get/with_token";
-  final String posttokenURL = "http://54.162.23.86:11234/post/with_token";
+  final String getURL = "http://${Constant.BASE_IP}:11234/get";
+  final String tokenURL = "http://${Constant.BASE_IP}:11234/get/with_token";
+  final String posttokenURL = "http://${Constant.BASE_IP}:11234/post/with_token";
   final String headURL = "https://characterai.io/i/80/static/avatars/";
   final String token="579aa6cc6e6096637499c0e89e2e3ab0b2142d25";
 

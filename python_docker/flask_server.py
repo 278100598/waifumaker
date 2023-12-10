@@ -12,17 +12,25 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 region_name = 'us-east-1'
-aws_access_key_id = "ASIA2HAW6NDV4KAXUCSZ"
-aws_secret_access_key = "fvnozi/GUWujI2O+/E9n0HhGqhGCuUi+oHbDQFR3"
-aws_session_token = "FwoGZXIvYXdzEI///////////wEaDGSE1SniJhw70eL5iyLMATZ3Ug3k8ktHv7uIm78YHqt7y7TNzbdpTEfQX4dddH60pBGJ2ZVbTXFjubqGOL9TkoBYSjqf/4gMrICB31fZEsxCmv/X7ML3Lm9VCI2I8UYr1D7xTPAHYwQR31UfFn/N6U46c+DajIydmkycffXons/6aqoecE0iRqCb0k1GkpImRxmfY6JF9e6snQJnxbUVcoAQ5l8rZfF4SrtTGoljVzGlcPkKLKC+/zSO/aJLekgNT71b5C2qlJT0ktJZzDvsoh+Jl9EXqe5dXRATmyihmNWrBjItynIn+bA5cv5VL3yEi9utQF5DY3bQPemAZDbjtW0jHGVSv6JkNemMiytpkFO/"
+aws_access_key_id = "ASIATUZO57NKHW4TYK6V"
+aws_secret_access_key = "xzLMseffwFvwJwryD9Y+fpeiArXmrmlZZcPDNAq2"
+aws_session_token = "FwoGZXIvYXdzEJn//////////wEaDMmJZNZW6FT46DefNSLMATQwFy97nzF+4NLLMyuH/N5XUUUsUk/xTW25aXi8jKgb8tP4OPteOWi9A4vMp2OllXQDxO3RZH2LcrGNId6geHPKRj4tjMiSHBxnFelr/GPKSPEU0DhEaWWknUuSnogUwpxDxEpCMo0wLhHSII5xeXgHUaBPcZRDt+DA08VfdQAz6jOZVTMb45yDQes2dpVch/NdlXqytn+BbnPfzbatWLntROjExTaZ6+2IPoKvRsEtpgv9aOgv+Ts+gUlrmXh49oMtz+LxbQTVamcz4Citv9erBjItdpLHJJ/qoIJnFsMXfJ5yEPs2WEyJcMaM6wTnTBDAS1/0bDmFA1ZpTj8il1Tp"
 
 
-@app.route("/get")
+@app.get("/get")
 def get():
     URL = request.args.get("URL")
     print(URL)
     res = requests.get(URL)
     return res.content, 200
+
+@app.get("/get/voice_list")
+def get_voice_list():
+    ret = []
+    with open("zh-cn_and_zh-tw.txt", "r", encoding="utf-8") as f:
+        for line in f.readlines():
+            ret.append(line.strip().split(' ')[1])
+    return ret, 200
 
 session = tls_client.Session(
     client_identifier='chrome112'
@@ -73,7 +81,7 @@ def get_s3_list():
     return ret, 200
 
 sqs = boto3.client('sqs', region_name=region_name, aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key,aws_session_token=aws_session_token)
-queue_url = 'https://sqs.us-east-1.amazonaws.com/702275283179/zeroqueue'
+queue_url = 'https://sqs.us-east-1.amazonaws.com/250817149780/zeroqueue'
 CACHE = set()
 @app.get("/get/sqs")
 def get_sqs():
@@ -130,26 +138,22 @@ def post_voice():
     filename = f"{SPEAKER}_{LANG}_{TEXT}.wav"
     if filename not in VOCIE_CACHE:
         VOCIE_CACHE.add(filename)
-        voice_path = get_voice(SPEAKER,TEXT,LANG)
-        url = f"https://v2.genshinvoice.top/file={voice_path}"
 
         try:
-            voice = requests.get(url).content
+            voice_path = get_voice(SPEAKER,TEXT,LANG)
         except Exception as e:
             VOCIE_CACHE.remove(filename)
             return "", 200
 
+        url = f"https://v2.genshinvoice.top/file={voice_path}"
+        voice = requests.get(url).content
         with open(filename, "wb") as f:
             f.write(voice)
         s3.upload_file(filename, BUCKET, f"Voice/{filename}")
-        #os.remove(filename)
+        os.remove(filename)
         return f"https://v2.genshinvoice.top/file={voice_path}", 200
 
     return f"https://{BUCKET}.s3.amazonaws.com/Voice/{SPEAKER}_{LANG}_{TEXT}.wav", 200
-
-
-
-
 
 
 

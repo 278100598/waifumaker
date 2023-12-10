@@ -1,11 +1,11 @@
-import 'package:easy_search_bar/easy_search_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:xml/xml.dart';
 import 'package:http/http.dart' as http;
+import 'constant.dart' as Constant;
 
 class HttpService {
-  final String getURL = "http://54.162.23.86:11234/get";
-  final String sqsURL = "http://54.162.23.86:11234/get/sqs";
+  final String getURL = "http://${Constant.BASE_IP}:11234/get";
+  final String sqsURL = "http://${Constant.BASE_IP}:11234/get/sqs";
 
   Future<String> searchTag(String tag) async {
     final http.Response res = await http.get(Uri.parse("$getURL?URL=https://yande.re/tag.xml?order=count%26name=$tag"));
@@ -36,23 +36,7 @@ class SQSPage extends StatefulWidget {
 class _SQSPageState extends State<SQSPage> {
   String searchValue = '';
 
-  List<String> _suggestions = ['Afeganistan', 'Albania', 'Algeria', 'Australia', 'Brazil', 'German', 'Madagascar', 'Mozambique', 'Portugal', 'Zambia'];
-
-  Future<void> _search(String name) async {
-    final res = await HttpService().searchTag(name);
-    final document = XmlDocument.parse(res).findAllElements("tag");
-    print(res);
-    List<String> tmp = [];
-    for (var tag in document) {
-      if (tag.getAttribute('count')!=0) {
-        tmp.add("${tag.getAttribute('name')} (${tag.getAttribute('count')})");
-      }
-    }
-
-    setState(() {
-      _suggestions = tmp;
-    });
-  }
+  
 
   final TextEditingController _searchController = TextEditingController();
   final List<String> _data = [];

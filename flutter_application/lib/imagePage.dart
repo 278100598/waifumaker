@@ -3,12 +3,13 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
+import 'constant.dart' as Constant;
 
 class HttpService {
-  final String gets3listURL = "http://54.162.23.86:11234/get/s3_list";
+  final String gets3listURL = "http://${Constant.BASE_IP}:11234/get/s3_list";
 
   Future<String> listObject(String path) async {
-    final http.Response res = await http.get(Uri.parse("$gets3listURL?BUCKET=waifumakerbucket&PREFIX=$path"));
+    final http.Response res = await http.get(Uri.parse("$gets3listURL?BUCKET=waifumakerbucket1&PREFIX=$path"));
     
     if (res.statusCode == 200) {
       return res.body ;
@@ -36,7 +37,7 @@ class _ImagePageState extends State<ImagePage> {
     for (String p in path) {
       prefix_path += p;
     }
-    final s3_url = "https://waifumakerbucket.s3.amazonaws.com/";
+    final s3_url = "https://waifumakerbucket1.s3.amazonaws.com/";
     final appbar = AppBar(
       leading: IconButton(
         icon: Icon(Icons.arrow_back, color: Colors.black),
@@ -62,9 +63,9 @@ class _ImagePageState extends State<ImagePage> {
             List<String> images = [], original_images = [];
             for (var object in objects) {
               if(object.toString().contains("preview")) {
-                images.add("http://54.162.23.86:11234/get?URL=$s3_url${object.toString()}");
+                images.add("http://${Constant.BASE_IP}:11234/get?URL=$s3_url${object.toString()}");
               } else {
-                original_images.add("http://54.162.23.86:11234/get?URL=$s3_url${object.toString()}");
+                original_images.add("http://${Constant.BASE_IP}:11234/get?URL=$s3_url${object.toString()}");
               }
             }
 

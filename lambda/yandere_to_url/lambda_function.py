@@ -13,7 +13,7 @@ def lambda_handler(event, context):
             if name == message['tag']:
 
                 sqs = boto3.client('sqs')
-                queue_url = 'https://sqs.us-east-1.amazonaws.com/702275283179/firstqueue'
+                queue_url = 'https://sqs.us-east-1.amazonaws.com/250817149780/firstqueue'
 
                 cnt = 0
                 for p in range(1, 10):
