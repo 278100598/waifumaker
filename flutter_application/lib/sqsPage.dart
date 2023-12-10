@@ -4,8 +4,8 @@ import 'package:xml/xml.dart';
 import 'package:http/http.dart' as http;
 
 class HttpService {
-  final String getURL = "http://127.0.0.1:11234/get";
-  final String sqsURL = "http://127.0.0.1:11234/get/sqs";
+  final String getURL = "http://54.162.23.86:11234/get";
+  final String sqsURL = "http://54.162.23.86:11234/get/sqs";
 
   Future<String> searchTag(String tag) async {
     final http.Response res = await http.get(Uri.parse("$getURL?URL=https://yande.re/tag.xml?order=count%26name=$tag"));

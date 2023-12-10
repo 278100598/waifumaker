@@ -11,8 +11,8 @@ import 'package:audio_session/audio_session.dart';
 import 'common.dart';
 
 class HttpService {
-  final String getURL = "http://127.0.0.1:11234/get";
-  final String postvoiceURL = "http://127.0.0.1:11234/post/vocie";
+  final String getURL = "http://54.162.23.86:11234/get";
+  final String postvoiceURL = "http://54.162.23.86:11234/post/vocie";
 
   Future<String> generateVoice(String speaker, String lang, String text) async {
     var url="$postvoiceURL";
