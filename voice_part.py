@@ -13,13 +13,30 @@ noise 感情：控制感情变化和稳定程度
 noisew 音素长度：控制音节发音长度变化程度
 '''
 def get_vocie(speaker: str, nation: str,  text:str, lang:str, length:str=1, noise:str=0.6, noisew:str=0.8):
-    url = f"https://genshinvoice.top/api?speaker={speaker}_{nation}&text={text}&format=wav&length={length}&noise={noise}&noisew={noisew}&sdp_ratio=0.2&language={lang}"
+    url = f"https://v2.genshinvoice.top/run/predict"
+    data = {
+        "data": [
+            text,
+            speaker,
+            0,
+            0.2,
+            0.6,
+            0.8,
+            1,
+            "ZH",
+            None
+        ],
+        "event_data": None,
+        "fn_index": 2,
+    }
+
     res = requests.get(url=url,timeout=len(text)/10)
+    print(res.text)
     with open("save.wav","wb") as f:
         f.write(res.content)
 txt = "Hmm... So you're that Traveler everyone seems to speak about these days, no? | I wonder what kind of surprise you may bring to Fontaine... "
-#get_vocie("芙宁娜","EN",txt,lang="EN")
-playsound("save.wav")
+get_vocie("芙宁娜","EN",txt,lang="EN")
+#playsound("save.wav")
 
 # unknown_sentence = 'おはよう'
 # translator = googletrans.Translator()
