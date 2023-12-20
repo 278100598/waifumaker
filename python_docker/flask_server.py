@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import re
+from threading import Thread
 
 import boto3
 import requests
@@ -12,10 +13,24 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 region_name = 'us-east-1'
-aws_access_key_id = "ASIATUZO57NKHW4TYK6V"
-aws_secret_access_key = "xzLMseffwFvwJwryD9Y+fpeiArXmrmlZZcPDNAq2"
-aws_session_token = "FwoGZXIvYXdzEJn//////////wEaDMmJZNZW6FT46DefNSLMATQwFy97nzF+4NLLMyuH/N5XUUUsUk/xTW25aXi8jKgb8tP4OPteOWi9A4vMp2OllXQDxO3RZH2LcrGNId6geHPKRj4tjMiSHBxnFelr/GPKSPEU0DhEaWWknUuSnogUwpxDxEpCMo0wLhHSII5xeXgHUaBPcZRDt+DA08VfdQAz6jOZVTMb45yDQes2dpVch/NdlXqytn+BbnPfzbatWLntROjExTaZ6+2IPoKvRsEtpgv9aOgv+Ts+gUlrmXh49oMtz+LxbQTVamcz4Citv9erBjItdpLHJJ/qoIJnFsMXfJ5yEPs2WEyJcMaM6wTnTBDAS1/0bDmFA1ZpTj8il1Tp"
+aws_access_key_id = None
+aws_secret_access_key = None
+aws_session_token = None
+queue_url = 'https://sqs.us-east-1.amazonaws.com/414999586208/zeroqueue'
 
+@app.post("/set_aws")
+def set_aws():
+    j = request.json
+    global aws_access_key_id, aws_secret_access_key, aws_session_token
+    aws_access_key_id = j["aws_access_key_id"]
+    aws_secret_access_key = j["aws_secret_access_key"]
+    aws_session_token = j["aws_session_token"]
+    global s3, sqs
+    s3 = boto3.client('s3', region_name=region_name, aws_access_key_id=aws_access_key_id,
+                      aws_secret_access_key=aws_secret_access_key, aws_session_token=aws_session_token)
+    sqs = boto3.client('sqs', region_name=region_name, aws_access_key_id=aws_access_key_id,
+                      aws_secret_access_key=aws_secret_access_key, aws_session_token=aws_session_token)
+    return "success", 200
 
 @app.get("/get")
 def get():
@@ -81,7 +96,7 @@ def get_s3_list():
     return ret, 200
 
 sqs = boto3.client('sqs', region_name=region_name, aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key,aws_session_token=aws_session_token)
-queue_url = 'https://sqs.us-east-1.amazonaws.com/250817149780/zeroqueue'
+
 CACHE = set()
 @app.get("/get/sqs")
 def get_sqs():
@@ -102,7 +117,6 @@ with open("zh-cn_and_zh-tw.txt","r",encoding="utf-8") as f:
     for line in f.readlines():
         two = line.strip().split(' ')
         zh_to_cn[two[1]] = two[0]
-print(len(zh_to_cn))
 
 
 def get_voice(speaker: str,  text:str, lang:str, length:str=1, noise:str=0.6, noisew:str=0.8):
@@ -112,16 +126,17 @@ def get_voice(speaker: str,  text:str, lang:str, length:str=1, noise:str=0.6, no
         "data": [
             text,
             speaker,
-            0,
             0.2,
             noise,
             noisew,
             length,
             lang,
-            None
+            None,
+            "Happy",
+            "Text prompt",
         ],
         "event_data": None,
-        "fn_index": 2,
+        "fn_index": 0,
     }
 
     res = requests.post(url=url, json=data, headers=headers)
@@ -149,8 +164,10 @@ def post_voice():
         voice = requests.get(url).content
         with open(filename, "wb") as f:
             f.write(voice)
-        s3.upload_file(filename, BUCKET, f"Voice/{filename}")
-        os.remove(filename)
+        Thread(target=lambda: {
+            s3.upload_file(filename, BUCKET, f"Voice/{filename}"),
+            os.remove(filename)
+        }, daemon=True).start()
         return f"https://v2.genshinvoice.top/file={voice_path}", 200
 
     return f"https://{BUCKET}.s3.amazonaws.com/Voice/{SPEAKER}_{LANG}_{TEXT}.wav", 200

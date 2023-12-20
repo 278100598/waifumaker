@@ -4,6 +4,13 @@ import boto3
 
 import requests
 from bs4 import BeautifulSoup
+
+ret = requests.get("https://yande.re/post.xml?tags=hatsune_miku&limit=100&page=2")
+x = re.findall(r"md5=\"(.+?)\"",ret.text)
+print(len(set(x)))
+
+exit()
+
 region_name = 'us-east-1'
 aws_access_key_id = "ASIA2HAW6NDV4KAXUCSZ"
 aws_secret_access_key = "fvnozi/GUWujI2O+/E9n0HhGqhGCuUi+oHbDQFR3"
