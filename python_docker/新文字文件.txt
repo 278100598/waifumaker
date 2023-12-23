@@ -5,6 +5,6 @@ docker build -t xiang1078/python-server .
 docker push xiang1078/python-server
 
 docker pull xiang1078/flutter-web
-docker run -d -p 80:80 --name flutter-web xiang1078/flutter-web
+docker run -d -p 80:80  --name flutter-web xiang1078/flutter-web
 docker pull xiang1078/python-server
-docker run -d -p 11234:11234 --name python-server xiang1078/python-server
+docker run -d -p 11234:11234 -v $PWD/Gallery:/app/Gallery -v $PWD/Voice:/app/Voice --name python-server xiang1078/python-server

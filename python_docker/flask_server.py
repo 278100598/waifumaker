@@ -10,8 +10,11 @@ import tls_client
 from flask import Flask,  request
 from flask_cors import CORS
 
+from scraper import zero_yandere, zero_pixiv
+
 app = Flask(__name__)
 CORS(app)
+"""
 region_name = 'us-east-1'
 aws_access_key_id = None
 aws_secret_access_key = None
@@ -31,10 +34,17 @@ def set_aws():
     sqs = boto3.client('sqs', region_name=region_name, aws_access_key_id=aws_access_key_id,
                       aws_secret_access_key=aws_secret_access_key, aws_session_token=aws_session_token)
     return "success", 200
+"""
 
 @app.get("/get")
 def get():
     URL = request.args.get("URL")
+    if "https://waifumakerbucket2.s3.amazonaws.com/" in URL:
+        path = URL.replace("https://waifumakerbucket2.s3.amazonaws.com/","")
+        print("DISK:", path)
+        with open(path, "rb") as f:
+            return f.read(), 200
+
     print(URL)
     res = requests.get(URL)
     return res.content, 200
@@ -80,9 +90,20 @@ def post_with_token():
 
     return res.content, 200
 
-s3 = boto3.client('s3', region_name=region_name, aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key,aws_session_token=aws_session_token)
+
 @app.get("/get/s3_list")
 def get_s3_list():
+    PREFIX = request.args.get("PREFIX")
+    ret = []
+    for d in os.listdir(PREFIX):
+        new = f"{PREFIX}{d}"
+        if os.path.isdir(new):
+            new+="/"
+        ret.append(new)
+
+    return ret
+
+    """
     BUCKET = request.args.get("BUCKET")
     PREFIX = request.args.get("PREFIX")
     res = s3.list_objects(Bucket=BUCKET, Prefix=PREFIX, Delimiter='/')
@@ -94,8 +115,9 @@ def get_s3_list():
         for x in res["Contents"]:
             ret.append(x["Key"])
     return ret, 200
+    """
 
-sqs = boto3.client('sqs', region_name=region_name, aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key,aws_session_token=aws_session_token)
+
 
 CACHE = set()
 @app.get("/get/sqs")
@@ -103,12 +125,27 @@ def get_sqs():
     TAG = request.args.get("TAG")
     if TAG not in CACHE:
         CACHE.add(TAG)
-        ret = sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps({"tag": TAG}))
+        ret = zero_yandere({"tag": TAG})
         print(ret)
         return ret, 200
     else:
         print(f"{TAG} have been searched")
         return f"{TAG} have been searched", 418
+
+@app.post("/post/pixiv")
+def post_pixiv():
+    j = request.json
+    message = {
+        "cookie": j["cookie"],
+        "order": True,
+        "keyword": j["keyword"],
+        "ai": j["ai"] == "Yes",
+        "mode": j["mode"],
+    }
+
+    Thread(target=lambda:zero_pixiv(message),daemon=True).start()
+    return "working...", 200
+
 
 
 VOCIE_CACHE = set()
@@ -119,14 +156,14 @@ with open("zh-cn_and_zh-tw.txt","r",encoding="utf-8") as f:
         zh_to_cn[two[1]] = two[0]
 
 
-def get_voice(speaker: str,  text:str, lang:str, length:str=1, noise:str=0.6, noisew:str=0.8):
+def get_voice(speaker: str,  text:str, lang:str, length:str=1, noise:str=0.6, noisew:str=0.9):
     url = f"https://v2.genshinvoice.top/run/predict"
     headers = {'Content-Type': 'application/json'}
     data = {
         "data": [
             text,
             speaker,
-            0.2,
+            0.5,
             noise,
             noisew,
             length,
@@ -134,6 +171,8 @@ def get_voice(speaker: str,  text:str, lang:str, length:str=1, noise:str=0.6, no
             None,
             "Happy",
             "Text prompt",
+            "",
+            0.7,
         ],
         "event_data": None,
         "fn_index": 0,
@@ -162,12 +201,13 @@ def post_voice():
 
         url = f"https://v2.genshinvoice.top/file={voice_path}"
         voice = requests.get(url).content
-        with open(filename, "wb") as f:
-            f.write(voice)
-        Thread(target=lambda: {
-            s3.upload_file(filename, BUCKET, f"Voice/{filename}"),
-            os.remove(filename)
-        }, daemon=True).start()
+
+        def upload():
+            os.makedirs(os.path.dirname("Voice/"), exist_ok=True)
+            with open(f"Voice/{filename}", "wb") as f:
+                f.write(voice)
+
+        Thread(target=upload, daemon=True).start()
         return f"https://v2.genshinvoice.top/file={voice_path}", 200
 
     return f"https://{BUCKET}.s3.amazonaws.com/Voice/{SPEAKER}_{LANG}_{TEXT}.wav", 200

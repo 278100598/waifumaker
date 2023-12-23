@@ -9,7 +9,7 @@ class HttpService {
   final String gets3listURL = "http://${Constant.BASE_IP}:11234/get/s3_list";
 
   Future<String> listObject(String path) async {
-    final http.Response res = await http.get(Uri.parse("$gets3listURL?BUCKET=waifumakerbucket1&PREFIX=$path"));
+    final http.Response res = await http.get(Uri.parse("$gets3listURL?BUCKET=waifumakerbucket2&PREFIX=$path"));
     
     if (res.statusCode == 200) {
       return res.body ;
@@ -27,7 +27,7 @@ class ImagePage extends StatefulWidget {
 }
 
 class _ImagePageState extends State<ImagePage> {
-  List<String> path = ["yandere/"];
+  List<String> path = ["Gallery/"];
   
   @override
   Widget build(BuildContext context) {
@@ -37,7 +37,7 @@ class _ImagePageState extends State<ImagePage> {
     for (String p in path) {
       prefix_path += p;
     }
-    final s3_url = "https://waifumakerbucket1.s3.amazonaws.com/";
+    final s3_url = "https://waifumakerbucket2.s3.amazonaws.com/";
     final appbar = AppBar(
       leading: IconButton(
         icon: Icon(Icons.arrow_back, color: Colors.black),
@@ -59,7 +59,7 @@ class _ImagePageState extends State<ImagePage> {
       builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
         if (snapshot.hasData) {
           List<dynamic> objects = jsonDecode(snapshot.data!);
-          if (objects[0].toString().contains(".jpg")) {
+          if (objects[0].toString().contains(".jpg") || objects[0].toString().contains(".png")) {
             List<String> images = [], original_images = [];
             for (var object in objects) {
               if(object.toString().contains("preview")) {

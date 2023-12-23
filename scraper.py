@@ -1,19 +1,83 @@
-import json
-import requests
-import urllib.parse as urlparse
-import boto3
+import os
 import re
 
+import requests
+import urllib.parse as urlparse
 
-def yandere(message):
+def first_yandere(message):
+
+    res = requests.get(message["url"])
+
+    os.makedirs(os.path.dirname(message["file_name"]), exist_ok=True)
+    with open(message["file_name"], "wb") as f:
+        f.write(res.content)
+
+    print(message)
+
+
+def first_pixiv(message):
+    cookie = message["cookie"]
+    id = message["id"]
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36",
+        "COOKIE": cookie,
+        "Referer": f"https://www.pixiv.net/{id}"
+    }
+    res = requests.get(message["url"], headers=headers)
+
+    os.makedirs(os.path.dirname(message["file_name"]), exist_ok=True)
+    with open(message["file_name"], "wb") as f:
+        f.write(res.content)
+
+    print(id, message["file_name"])
+
+
+
+
+def mid_pixiv(message):
+    id = message["id"]
+    keyword = message["keyword"]
+    mode = message["mode"]
+    cookie = message["cookie"]
+    ai = message["ai"]
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36",
+        "COOKIE": cookie,
+        "Referer": f"https://www.pixiv.net/{id}"
+    }
+    ret = requests.get(f"https://www.pixiv.net/ajax/illust/{id}/pages?lang=zh", headers=headers)
+
+    urlss = [item["urls"] for item in ret.json()["body"]]
+
+    folder_name = keyword + ("" if ai else "_no_ai")
+
+    for index, urls in enumerate(urlss):
+        if index == 3:
+            break
+
+        original = urls["original"]
+        regular = urls["regular"]
+        small = urls["small"]
+
+        body = {"type": "pixiv", "url": small, "bucket": "waifumakerbucket2",
+                "file_name": f"Gallery/pixiv/{mode}/{folder_name}/preview_{id}_p{index}.{small.split('.')[-1]}",
+                "cookie": cookie, "id": id}
+        first_pixiv(body)
+        body = {"type": "pixiv", "url": regular, "bucket": "waifumakerbucket2",
+                "file_name": f"Gallery/pixiv/{mode}/{folder_name}/regular_{id}_p{index}.{original.split('.')[-1]}",
+                "cookie": cookie, "id": id}
+        first_pixiv(body)
+
+
+def zero_yandere(message):
     tag = message['tag']
 
     ret = requests.get(f"https://yande.re/tag.xml?name={tag}&order=count")
     for id, name, count, type, ambiguous in re.findall(
             r'<tag id="(.+?)" name="(.+?)" count="(.+?)" type="(.+?)" ambiguous="(.+?)"/>', ret.text):
         if name == tag:
-            sqs = boto3.client('sqs')
-            queue_url = 'https://sqs.us-east-1.amazonaws.com/089106211772/firstqueue'
 
             cnt = 0
             for p in range(1, 3):
@@ -30,16 +94,16 @@ def yandere(message):
 
                     body = {"type": "yandere", "url": jpeg_url, "bucket": "waifumakerbucket2",
                             "file_name": f"Gallery/yandere/{name}/{md5}.jpg"}
-                    sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(body))
+                    first_yandere(body)
                     body = {"type": "yandere", "url": preview_url, "bucket": "waifumakerbucket2",
                             "file_name": f"Gallery/yandere/{name}/preview_{md5}.jpg"}
-                    sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(body))
+                    first_yandere(body)
 
             print(f"next!!!!!!!!!! {message} total:{cnt}images")
             return
 
 
-def pixiv(message):
+def zero_pixiv(message):
     keyword = message["keyword"]
     order = message["order"]
     mode = message["mode"]
@@ -58,9 +122,6 @@ def pixiv(message):
         "Referer": "https://www.pixiv.net/"
     }
 
-    sqs = boto3.client('sqs')
-    queue_url = 'https://sqs.us-east-1.amazonaws.com/089106211772/pixiv_midqueue'
-
     id_set = []
     for p in range(1, 2):
         ret = requests.get(url.format(p), headers=headers)
@@ -71,22 +132,7 @@ def pixiv(message):
             id_set.append(id)
 
             body = {"type": "pixiv", "id": id, "cookie": cookie, "keyword": keyword, "ai": ai, "mode": mode}
-            sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(body))
+            mid_pixiv(body)
 
     print(f"next!!!!!!!!!! {keyword} {mode} {ai} total:{len(id_set)}images")
     return
-
-
-def lambda_handler(event, context):
-    for record in event["Records"]:
-        message = json.loads(record["body"])
-
-        if message["type"] == "yandere":
-            yandere(message)
-        elif message["type"] == "pixiv":
-            pixiv(message)
-
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
-    }

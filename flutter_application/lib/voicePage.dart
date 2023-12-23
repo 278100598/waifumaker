@@ -17,10 +17,9 @@ class HttpService {
   final String getlistURL = "http://${Constant.BASE_IP}:11234/get/voice_list";
 
   Future<String> generateVoice(String speaker, String lang, String text) async {
-    var url="$postvoiceURL";
     final header = {"Content-Type": "application/json"};
     var data = {
-      "BUCKET": "waifumakerbucket1",
+      "BUCKET": "waifumakerbucket2",
       "SPEAKER": speaker,
       "LANG": lang,
       "TEXT": text,
@@ -64,11 +63,9 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.black,
     ));
-    _textController.text = "相對論是關於時空和重力的理論，主要由愛因斯坦創立，依其研究對象的不同可分為狹義相對論和廣義相對論。";
-    _init();
   }
 
-  Future<void> _init() async {
+  Future<void> _init(appState) async {
     // Inform the operating system of our app's audio attributes etc.
     // We pick a reasonable default for an app that plays speech.
     final session = await AudioSession.instance;
@@ -81,19 +78,22 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
     // Try to load audio from a source and catch any errors.
     try {
       // AAC example: https://dl.espressif.com/dl/audio/ff-16b-2c-44100hz.aac
+
       await _player.setAudioSource(AudioSource.uri(Uri.parse(
-          "https://waifumakerbucket1.s3.amazonaws.com/Voice/%E7%AC%A6%E7%8E%84_ZH_ZH_%E7%9B%B8%E5%B0%8D%E8%AB%96%E6%98%AF%E9%97%9C%E6%96%BC%E6%99%82%E7%A9%BA%E5%92%8C%E9%87%8D%E5%8A%9B%E7%9A%84%E7%90%86%E8%AB%96%EF%BC%8C%E4%B8%BB%E8%A6%81%E7%94%B1%E6%84%9B%E5%9B%A0%E6%96%AF%E5%9D%A6%E5%89%B5%E7%AB%8B%EF%BC%8C%E4%BE%9D%E5%85%B6%E7%A0%94%E7%A9%B6%E5%B0%8D%E8%B1%A1%E7%9A%84%E4%B8%8D%E5%90%8C%E5%8F%AF%E5%88%86%E7%82%BA%E7%8B%B9%E7%BE%A9%E7%9B%B8%E5%B0%8D%E8%AB%96%E5%92%8C%E5%BB%A3%E7%BE%A9%E7%9B%B8%E5%B0%8D%E8%AB%96%E3%80%82.wav"
+          appState.voice_url
       )));
     } catch (e) {
       print("Error loading audio source: $e");
     }
   }
 
+
   @override
   void dispose() {
     ambiguate(WidgetsBinding.instance)!.removeObserver(this);
     // Release decoders and buffers back to the operating system making them
     // available for other apps to use.
+    _textController.dispose();
     _player.dispose();
     super.dispose();
   }
@@ -119,8 +119,8 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
-    appState.voice_text = _textController.text;
-
+    _textController.text = appState.voice_text;
+    _init(appState);
 
     return Scaffold(
       appBar: AppBar(title: Text("Voice Generating")),
@@ -148,7 +148,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
                       compareFn: (item, sItem) => item == sItem,
                       dropdownDecoratorProps: DropDownDecoratorProps(
                         dropdownSearchDecoration: InputDecoration(
-                          labelText: 'User *',
+                          labelText: 'Character *',
                           filled: true,
                           fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                         ),
@@ -194,6 +194,9 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
                     border: OutlineInputBorder(),
                     labelText: 'Text',
                   ),
+                  onChanged: (text) {
+                    appState.voice_text = text;
+                  },
                 ),
               ),
               Padding(padding: EdgeInsets.all(8)),
@@ -203,7 +206,7 @@ class _VoicePageState extends State<VoicePage> with WidgetsBindingObserver {
                     final result = await HttpService().generateVoice(appState.voice_character, appState.voice_lang, _textController.text);
                     await _player.setAudioSource(
                       AudioSource.uri(
-                        Uri.parse(result)
+                        Uri.parse("http://${Constant.BASE_IP}:11234/get?URL=$result")
                       )
                     );
                   }
@@ -277,6 +280,7 @@ class ControlButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -332,8 +336,8 @@ class ControlButtons extends StatelessWidget {
                 icon: const Icon(Icons.replay),
                 iconSize: 64.0,
                 onPressed: () {
-                  player.pause();
                   player.seek(Duration.zero);
+                  player.pause();
                 },
               );
             }

@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -17,9 +16,8 @@ class HttpService {
   final String tokenURL = "http://${Constant.BASE_IP}:11234/get/with_token";
   final String posttokenURL = "http://${Constant.BASE_IP}:11234/post/with_token";
   final String headURL = "https://characterai.io/i/80/static/avatars/";
-  final String token="579aa6cc6e6096637499c0e89e2e3ab0b2142d25";
 
-  Future<String> getHistorys(String history_id) async {
+  Future<String> getHistorys(String history_id, String token) async {
     var url="https://beta.character.ai/chat/history/msgs/user/?history_external_id=$history_id";
     final http.Response res = await http.get(Uri.parse("$tokenURL?URL=$url&TOKEN=$token"));
     
@@ -30,7 +28,7 @@ class HttpService {
     }
   }
 
-  Future<String> queryCharacter(String name) async {
+  Future<String> queryCharacter(String name, String token) async {
     var url="https://beta.character.ai/chat/characters/search/?query=$name";
     final http.Response res = await http.get(Uri.parse("$tokenURL?URL=$url&TOKEN=$token"));
 
@@ -41,7 +39,7 @@ class HttpService {
     }
   }
 
-  Future<String> createCharacter(String id) async {
+  Future<String> createCharacter(String id, String token) async {
     final url = "https://beta.character.ai/chat/history/create/";
     final data = {"character_external_id":id};
     final header = {"Content-Type": "application/json"};
@@ -53,7 +51,7 @@ class HttpService {
     }
   }
 
-  Future<String> continueChat(String id) async {
+  Future<String> continueChat(String id, String token) async {
     final url = "https://beta.character.ai/chat/history/continue/";
     final data = {"character_external_id":id};
     final header = {"Content-Type": "application/json"};
@@ -65,7 +63,7 @@ class HttpService {
     }
   }
 
-  Future<void> sendMessage(String tgt, String history, String text) async {
+  Future<void> sendMessage(String tgt, String history, String text, String token) async {
     final url = "https://beta.character.ai/chat/streaming/";
     final data = {
       "history_external_id":history,
@@ -85,7 +83,8 @@ class HttpService {
 
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
+  final MyAppState appState;
+  const ChatPage (this.appState);
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -104,8 +103,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_performSearch);
-    _loadMessages(MyAppState());
+    _loadMessages(widget.appState);
   }
 
   
@@ -158,12 +156,12 @@ class _ChatPageState extends State<ChatPage> {
 
 
   void _handleSendPressed(types.PartialText message, MyAppState appState) async {
-    await HttpService().sendMessage(appState.tgt, appState.history_id, message.text);
+    await HttpService().sendMessage(appState.tgt, appState.history_id, message.text, appState.chat_token);
     _loadMessages(appState);
   }
 
   void _loadMessages(MyAppState appState) async {
-    final response = await HttpService().getHistorys(appState.history_id);
+    final response = await HttpService().getHistorys(appState.history_id, appState.chat_token);
     List<types.Message> messages = [];
     for (var message in (jsonDecode(response)["messages"] as List).reversed) {
       if (!message["src__is_human"]) {
@@ -192,7 +190,7 @@ class _ChatPageState extends State<ChatPage> {
 
   
 
-  Future<void> _performSearch() async {
+  Future<void> _performSearch(appState) async {
     if (_searchController.text == "") {
       setState(() {
         _isSearching = false;
@@ -201,7 +199,7 @@ class _ChatPageState extends State<ChatPage> {
     }
     
 
-    final characters = jsonDecode(await HttpService().queryCharacter(_searchController.text))["characters"];
+    final characters = jsonDecode(await HttpService().queryCharacter(_searchController.text, appState.chat_token))["characters"];
     setState(() {
       _isSearching = true;
       _filteredData = characters;
@@ -211,6 +209,9 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
+    _searchController.addListener(() {
+      _performSearch(appState);
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -245,9 +246,9 @@ class _ChatPageState extends State<ChatPage> {
               style: const TextStyle(color: Colors.blue),
             ),
             onTap: () async {
-              var res = await HttpService().continueChat(_filteredData[index]["external_id"]);
+              var res = await HttpService().continueChat(_filteredData[index]["external_id"], appState.chat_token);
               if (res=="there is no history between user and character") {
-                res = await HttpService().createCharacter(_filteredData[index]["external_id"]);
+                res = await HttpService().createCharacter(_filteredData[index]["external_id"], appState.chat_token);
               }
               setState(() {
                 appState.character_id = _filteredData[index]["external_id"];
